@@ -2,316 +2,205 @@ import { useState, useRef, useEffect } from 'react'
 import { Clock } from 'lucide-react'
 
 interface TimePickerProps {
-    initialTime?: string
-    onChange?: (time: string) => void
-    syncHour?: boolean
-    onHourChange?: (hour: number) => void
+  initialTime?: string
+  onChange?: (time: string) => void
+  syncHour?: boolean
+  onHourChange?: (hour: number) => void
 }
 
 const TimePicker: React.FC<TimePickerProps> = ({
-    initialTime = '05:00 PM',
-    onChange,
-    syncHour = false,
-    onHourChange,
+  initialTime = '05:00 PM',
+  onChange,
+  syncHour = false,
+  onHourChange,
 }) => {
-    // Parse the initial time only once when the component mounts
-    const parseInitialTime = () => {
-        const timeParts = initialTime.match(/(\d{1,2}):(\d{2})\s?(AM|PM)/i)
-        if (!timeParts) return { hour: 5, minute: 0, ampm: 'PM' }
-
-        return {
-            hour: parseInt(timeParts[1]),
-            minute: parseInt(timeParts[2]),
-            ampm: timeParts[3].toUpperCase(),
-        }
+  const parseInitialTime = () => {
+    const match = initialTime.match(/(\d{1,2}):(\d{2})\s?(AM|PM)/i)
+    return {
+      hour: match ? parseInt(match[1]) : 5,
+      minute: match ? parseInt(match[2]) : 0,
+      ampm: match ? match[3].toUpperCase() : 'PM',
     }
-
-    const [hour, setHour] = useState<number>(parseInitialTime().hour)
-    const [minute, setMinute] = useState<number>(parseInitialTime().minute)
-    const [ampm, setAmpm] = useState<string>(parseInitialTime().ampm)
-    const [isPickerOpen, setIsPickerOpen] = useState<boolean>(false)
-    const pickerRef = useRef<HTMLDivElement>(null)
-
-    const hoursContainerRef = useRef<HTMLDivElement>(null)
-    const minutesContainerRef = useRef<HTMLDivElement>(null)
-    const ampmContainerRef = useRef<HTMLDivElement>(null)
-    // Generate data arrays
-    const hours = Array.from({ length: 12 }, (_, i) => i + 1)
-    const minutes = Array.from({ length: 60 }, (_, i) => i)
-    const amPmOptions = ['AM', 'PM']
-
-    // Track scrolling state
-    const isScrolling = useRef(false)
-    const scrollTimeout = useRef<NodeJS.Timeout | null>(null)
-
-    // Get the centered value from scroll position
-    const getCenteredValue = (container: HTMLDivElement, items: any[]) => {
-      const containerRect = container.getBoundingClientRect()
-      const highlightCenter = containerRect.top + containerRect.height / 2
-  
-      const itemsElements = container.querySelectorAll(
-          'div[class*="snap-center"]'
-      )
-      let closestItem: Element | null = null
-      let smallestDistance = Infinity
-  
-      itemsElements.forEach((item) => {
-          const itemRect = item.getBoundingClientRect()
-          const itemCenter = itemRect.top + itemRect.height / 2
-          const distance = Math.abs(itemCenter - highlightCenter)
-  
-          if (distance < smallestDistance) {
-              smallestDistance = distance
-              closestItem = item
-          }
-      })
-  
-      if (!closestItem) return { value: items[0], actualIndex: 0 }
-  
-      const itemIndex = parseInt(
-          (closestItem as HTMLElement).getAttribute('data-index') || '0'
-      )
-  
-      return {
-          value: items[itemIndex % items.length],
-          actualIndex: itemIndex,
-      }
-  }
-  
-
-    // Scroll to center the selected item
-    const scrollToCenter = (
-        container: HTMLDivElement | null,
-        items: any[],
-        selected: any
-    ) => {
-        if (!container) return
-
-        isScrolling.current = true
-
-        const selectedIndex = items.indexOf(selected)
-        const itemsElements = container.querySelectorAll(
-            'div[class*="snap-center"]'
-        )
-        const targetElement = itemsElements[items.length + selectedIndex]
-
-        if (targetElement) {
-            const containerRect = container.getBoundingClientRect()
-            const targetRect = targetElement.getBoundingClientRect()
-            const highlightCenter = containerRect.top + containerRect.height / 2
-            const scrollPosition =
-                container.scrollTop +
-                (targetRect.top - highlightCenter) +
-                targetRect.height / 2
-
-            container.scrollTo({
-                top: scrollPosition,
-                behavior: 'auto',
-            })
-        }
-
-        setTimeout(() => (isScrolling.current = false), 300)
-    }
-
-    // Handle scroll events
-    const handleScroll = (type: 'hour' | 'minute' | 'ampm') => {
-      return () => {
-          if (isScrolling.current) return
-  
-          clearTimeout(scrollTimeout.current as NodeJS.Timeout)
-  
-          scrollTimeout.current = setTimeout(() => {
-              const container =
-                  type === 'hour'
-                      ? hoursContainerRef.current
-                      : type === 'minute'
-                      ? minutesContainerRef.current
-                      : ampmContainerRef.current
-  
-              const items =
-                  type === 'hour'
-                      ? hours
-                      : type === 'minute'
-                      ? minutes
-                      : amPmOptions
-  
-              if (!container) return
-  
-              const { value } = getCenteredValue(container, items)
-  
-              if (type === 'hour' && value !== hour) setHour(value)
-              if (type === 'minute' && value !== minute) setMinute(value)
-              if (type === 'ampm' && value !== ampm) setAmpm(value)
-          }, 100)
-      }
   }
 
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (
-                pickerRef.current &&
-                !pickerRef.current.contains(event.target as Node)
-            ) {
-                setIsPickerOpen(false)
-            }
-        }
-        document.addEventListener('mousedown', handleClickOutside)
-        return () =>
-            document.removeEventListener('mousedown', handleClickOutside)
-    }, [])
+  const [hour, setHour] = useState<number>(parseInitialTime().hour)
+  const [minute, setMinute] = useState<number>(parseInitialTime().minute)
+  const [ampm, setAmpm] = useState<string>(parseInitialTime().ampm)
+  const [isInitialized, setIsInitialized] = useState(false)
 
-    useEffect(() => {
-        const newTime = `${hour.toString().padStart(2, '0')}:${minute
-            .toString()
-            .padStart(2, '0')} ${ampm}`
-        onChange?.(newTime)
-    }, [hour, minute, ampm, onChange])
+  const hours = Array.from({ length: 12 }, (_, i) => i + 1)
+  const minutes = Array.from({ length: 60 }, (_, i) => i)
+  const amPmOptions = ['AM', 'PM']
 
-    useEffect(() => {
-        if (syncHour && onHourChange) {
-            onHourChange(hour)
-        }
-    }, [hour, syncHour, onHourChange])
+  const duplicates = 30
 
-    useEffect(() => {
-      if (!isPickerOpen) return
-  
-      setTimeout(() => {
-          scrollToCenter(hoursContainerRef.current, hours, hour)
-          scrollToCenter(minutesContainerRef.current, minutes, minute)
-          scrollToCenter(ampmContainerRef.current, amPmOptions, ampm)
-      }, 0)
-  }, [isPickerOpen])
+  const hoursContainerRef = useRef<HTMLDivElement>(null)
+  const minutesContainerRef = useRef<HTMLDivElement>(null)
+  const ampmContainerRef = useRef<HTMLDivElement>(null)
 
-    // Render item
-    const renderItem = (
-        value: number | string,
-        selectedValue: number | string
-    ) => {
-        const isSelected = value === selectedValue
-        const displayValue =
-            typeof value === 'number'
-                ? value.toString().padStart(2, '0')
-                : value
+  const repeated = (items: any[]) => Array(duplicates).fill(items).flat()
 
-        return (
-            <div
-                className={`
-          h-10 flex items-center justify-center
-          ${
-              isSelected
-                  ? 'text-primary font-bold text-lg'
-                  : 'text-muted-foreground'
-          }
-          transition-all duration-200
-        `}
-            >
-                {displayValue}
-            </div>
-        )
+  const centerScroll = (ref: HTMLDivElement | null, value: any, list: any[]) => {
+    if (!ref) return
+    const children = Array.from(ref.querySelectorAll('div[data-value]'))
+    const midIndex = Math.floor(children.length / 2)
+    const matching = children.filter(c => c.getAttribute('data-value') == value)
+    const target = matching.length ? matching[Math.floor(matching.length / 2)] : children[midIndex]
+    if (target) {
+      const containerRect = ref.getBoundingClientRect()
+      const targetRect = target.getBoundingClientRect()
+      const scroll = ref.scrollTop + (targetRect.top - containerRect.top) - containerRect.height / 2 + targetRect.height / 2
+      ref.scrollTo({ top: scroll, behavior: 'instant' as any })
     }
+  }
 
-    return (
-        <div className="relative w-full" ref={pickerRef}>
-            <div
-                className="w-full pl-3 pr-10 py-2 border rounded-md bg-background text-base cursor-pointer flex items-center gap-2"
-                onClick={() => setIsPickerOpen(!isPickerOpen)}
-            >
-                <Clock className="h-5 w-5 text-muted-foreground" />
-                {`${hour.toString().padStart(2, '0')}:${minute
-                    .toString()
-                    .padStart(2, '0')} ${ampm}`}
-            </div>
+  const getScrollValue = (ref: HTMLDivElement | null, list: any[]) => {
+    if (!ref) return list[0]
+    const rect = ref.getBoundingClientRect()
+    const centerY = rect.top + rect.height / 2
+    const items = Array.from(ref.querySelectorAll('div[data-value]'))
+    let closest = items[0]
+    let closestDist = Infinity
+    items.forEach(el => {
+      const elRect = el.getBoundingClientRect()
+      const elCenter = elRect.top + elRect.height / 2
+      const dist = Math.abs(centerY - elCenter)
+      if (dist < closestDist) {
+        closest = el
+        closestDist = dist
+      }
+    })
+    return closest.getAttribute('data-value')
+  }
 
-            {isPickerOpen && (
-                <div className="absolute z-50 mt-1 left-0 right-0 bg-white rounded-lg border shadow-lg p-4">
-                    <div className="flex items-center justify-center gap-2">
-                        {/* Hours */}
+  const handleScroll = (type: 'hour' | 'minute' | 'ampm') => {
+    let scrollTimeout: NodeJS.Timeout
+  
+    return () => {
+      const container =
+        type === 'hour'
+          ? hoursContainerRef.current
+          : type === 'minute'
+          ? minutesContainerRef.current
+          : ampmContainerRef.current
+  
+      const list = type === 'hour' ? hours : type === 'minute' ? minutes : amPmOptions
+      if (!container) return
+  
+      clearTimeout(scrollTimeout)
+  
+      scrollTimeout = setTimeout(() => {
+        const value = getScrollValue(container, list)
+        const parsedValue = typeof list[0] === 'number' ? parseInt(value as string) : value
+  
+        if (type === 'hour') setHour(parsedValue)
+        if (type === 'minute') setMinute(parsedValue)
+        if (type === 'ampm') setAmpm(parsedValue)
+  
+        // recenter on selected value
+        centerScroll(container, parsedValue, list)
+      }, 150)
+    }
+  }
 
-                        <div
-                            ref={hoursContainerRef}
-                            className="h-40 overflow-y-auto snap-y snap-mandatory scroll-smooth hide-scrollbar"
-                            onScroll={handleScroll('hour')}
-                        >
-                            <div className="py-20">
-                                {[...hours, ...hours, ...hours].map(
-                                    (h, index) => (
-                                        <div
-                                            key={`hour-${index}`}
-                                            className="snap-center h-10"
-                                            data-index={index % hours.length}
-                                        >
-                                            {renderItem(h, hour)}
-                                        </div>
-                                    )
-                                )}
-                            </div>
-                        </div>
+  useEffect(() => {
+    if (!isInitialized) {
+      const init = () => {
+        centerScroll(hoursContainerRef.current, hour, hours)
+        centerScroll(minutesContainerRef.current, minute, minutes)
+        centerScroll(ampmContainerRef.current, ampm, amPmOptions)
+        setIsInitialized(true)
+      }
+      setTimeout(init, 50)
+    }
+  }, [isInitialized])
 
-                        <span className="text-lg font-bold">:</span>
-
-                        {/* Minutes */}
-                        <div
-                            ref={minutesContainerRef}
-                            className="h-40 overflow-y-auto snap-y snap-mandatory scroll-smooth hide-scrollbar"
-                            onScroll={handleScroll('minute')}
-                        >
-                            <div className="py-20">
-                                {[...minutes, ...minutes, ...minutes].map(
-                                    (m, index) => (
-                                        <div
-                                            key={`minute-${index}`}
-                                            className="snap-center h-10"
-                                            data-index={index % minutes.length}
-                                        >
-                                            {renderItem(m, minute)}
-                                        </div>
-                                    )
-                                )}
-                            </div>
-                        </div>
-
-                        {/* AM/PM */}
-
-                        <div
-                            ref={ampmContainerRef}
-                            className="h-40 overflow-y-auto snap-y snap-mandatory scroll-smooth hide-scrollbar"
-                            onScroll={handleScroll('ampm')}
-                        >
-                            <div className="py-20">
-                                {/* Single instance of each option */}
-                                <div
-                                    className="snap-center h-10"
-                                    data-index={1}
-                                >
-                                    {renderItem('PM', ampm)}
-                                </div>
-                                <div
-                                    className="snap-center h-10"
-                                    data-index={0}
-                                >
-                                    {renderItem('AM', ampm)}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Center highlight */}
-                    <div className="absolute inset-x-0 top-1/2 transform -translate-y-1/2 h-10 bg-gray-100 bg-opacity-50 border-y border-gray-200 pointer-events-none"></div>
-                </div>
-            )}
-
-            <style jsx>{`
-                .hide-scrollbar::-webkit-scrollbar {
-                    display: none;
-                }
-                .hide-scrollbar {
-                    -ms-overflow-style: none;
-                    scrollbar-width: none;
-                }
-            `}</style>
-        </div>
+  useEffect(() => {
+    onChange?.(
+      `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')} ${ampm}`
     )
+  }, [hour, minute, ampm])
+
+  useEffect(() => {
+    if (syncHour && onHourChange) {
+      onHourChange(hour)
+    }
+  }, [hour, syncHour])
+
+  const renderItems = (items: any[], selected: any) => {
+    return repeated(items).map((item, i) => (
+      <div
+        key={`${item}-${i}`}
+        data-value={item}
+        className={`snap-center h-10 flex items-center justify-center ${
+          selected === item ? 'text-blue-600 font-bold text-lg' : 'text-gray-500'
+        }`}
+      >
+        {typeof item === 'number' ? item.toString().padStart(2, '0') : item}
+      </div>
+    ))
+  }
+
+  return (
+    <div className="w-full bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+      <div className="relative bg-gray-100 rounded-lg shadow p-4">
+      <div className="absolute inset-x-0 top-[56%] transform -translate-y-1/2 h-10 bg-white border-y border-gray-200 pointer-events-none z-0" />
+
+
+        <div className="flex items-center justify-center gap-2 relative z-0">
+          {/* Hour */}
+          <div className="flex flex-col items-center">
+            <div className="text-sm font-medium text-gray-500 mb-1">Hour</div>
+            <div className="relative w-16">
+              <div
+                ref={hoursContainerRef}
+                className="relative z-10 h-40 overflow-y-auto scrollbar-none snap-y snap-mandatory scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                onScroll={handleScroll('hour')}
+              >
+                <div className="py-20">{renderItems(hours, hour)}</div>
+              </div>
+            </div>
+          </div>
+          {/* Minute */}
+          <div className="flex flex-col items-center">
+            <div className="text-sm font-medium text-gray-500 mb-1">Minute</div>
+            <div className="relative w-16">
+              <div
+                ref={minutesContainerRef}
+                className="relative z-10 h-40 overflow-y-auto scrollbar-none snap-y snap-mandatory scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                onScroll={handleScroll('minute')}
+              >
+                <div className="py-20">{renderItems(minutes, minute)}</div>
+              </div>
+            </div>
+          </div>
+          {/* AM/PM */}
+          <div className="flex flex-col items-center">
+            <div className="text-sm font-medium text-gray-500 mb-1">AM/PM</div>
+            <div className="relative w-16">
+              <div
+                ref={ampmContainerRef}
+                className="relative z-10 h-40 overflow-y-auto scrollbar-none snap-y snap-mandatory scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                onScroll={handleScroll('ampm')}
+              >
+                <div className="py-20">{amPmOptions.map((item, i) => (
+                <div
+                  key={item}
+                  data-value={item}
+                  className={`snap-center h-10 flex items-center justify-center ${
+                    ampm === item ? 'text-blue-600 font-bold text-lg' : 'text-gray-500'
+                  }`}
+                >
+                  {item}
+                </div>
+              ))}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default TimePicker
