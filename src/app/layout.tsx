@@ -22,11 +22,11 @@ const HomeLayout = ({
   children: React.ReactNode
 }>) => (
   <html lang="en">
-    {/* <head>
+    <head>
         <link rel="manifest" href="/manifest.json" />
         <link rel="icon" href="/icons/icon-192x192.png" />
         <meta name="theme-color" content="#ffffff" />
-      </head> */}
+      </head>
     <body className={`${inter.className} antialiased`}>
       <SessionLayout>
         {/* <InstallButton /> */}
