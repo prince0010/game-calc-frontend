@@ -369,7 +369,7 @@ const GameForm = ({
     const startTime = useWatch({ control: form.control, name: 'start' })
     useEffect(() => {
         // Only apply ni sa new games (pag walay id)
-        if (!id && startTime) {
+        if (startTime) {
             const timeParts = startTime.match(/(\d{1,2}):(\d{2})\s?(AM|PM)/)
             if (timeParts) {
                 const hour = timeParts[1]
@@ -380,7 +380,7 @@ const GameForm = ({
                 form.setValue('end', endTime, { shouldValidate: true })
             }
         }
-    }, [startTime, form, id])
+    }, [startTime, form])
 
     useEffect(() => {
         if (!id && sessionData?.fetchSession?.games) {
@@ -402,12 +402,14 @@ const GameForm = ({
 
             // Set the end time based on the start time
             const timeParts = newStart.match(/(\d{1,2}):(\d{2})\s?(AM|PM)/)
+            let newEnd = '00:00 PM'
             if (timeParts) {
                 const hour = timeParts[1]
                 const ampm = timeParts[3]
-                const endTime = `${hour}:00 ${ampm}`
-                form.setValue('end', endTime, { shouldValidate: true })
+                newEnd = `${hour}:00 ${ampm}`
             }
+            form.setValue('start', newStart);
+            form.setValue('end', newEnd, { shouldValidate: true });
         }
     }, [sessionData, id, form, sessionData?.fetchSession?.games?.length])
 
@@ -558,7 +560,6 @@ const GameForm = ({
     const closeForm = () => {
         setIsClosing(true)
       
-
         if (!id) {
             const defaultCourt = sessionData?.fetchSession?.court?._id || ''
             const defaultShuttle = sessionData?.fetchSession?.shuttle?._id || ''
@@ -574,6 +575,14 @@ const GameForm = ({
                     'hh:mm a'
                 )
             }
+            // Calculate end time based on start time
+            const timeParts = newStart.match(/(\d{1,2}):(\d{2})\s?(AM|PM)/);
+            let newEnd = '00:00 PM';
+            if (timeParts) {
+                const hour = timeParts[1];
+                const ampm = timeParts[3];
+                newEnd = `${hour}:00 ${ampm}`;
+            }
 
             form.reset({
                 players: ['', '', '', ''],
@@ -581,7 +590,7 @@ const GameForm = ({
                 shuttles: [{ quantity: 1, shuttle: defaultShuttle }],
                 session: sessionId || '',
                 start: newStart,
-                end: '00:00 PM',
+                end: newEnd,
                 winner: undefined,
             })
         }
@@ -767,8 +776,8 @@ const GameForm = ({
                             <div className="grid grid-cols-2 gap-2">
                                 <div>
                                     <div className="flex flex-row items-center gap-2">
-                                        <Clock className="h-5 w-5 text-muted-foreground" />{' '}
-                                        <label className="text-base block mb-1">
+                                        <Clock className="mb-[-6px] h-5 w-5 text-muted-foreground" />{' '}
+                                        <label className="text-base font-medium block mb-1 mt-2">
                                             Start Time
                                         </label>
                                     </div>
@@ -785,8 +794,8 @@ const GameForm = ({
 
                                 <div>
                                     <div className="flex flex-row items-center gap-2">
-                                        <Clock className="h-5 w-5 text-muted-foreground" />{' '}
-                                        <label className="text-base block mb-1">
+                                        <Clock className="mb-[-6px] h-5 w-5 text-muted-foreground" />{' '}
+                                        <label className="text-base font-medium block mb-1 mt-2">
                                             End Time
                                         </label>
                                     </div>

@@ -32,7 +32,7 @@ const TimePicker: React.FC<TimePickerProps> = ({
   const minutes = Array.from({ length: 60 }, (_, i) => i)
   const amPmOptions = ['AM', 'PM']
 
-  const duplicates = 30
+  const duplicates = 20
 
   const hoursContainerRef = useRef<HTMLDivElement>(null)
   const minutesContainerRef = useRef<HTMLDivElement>(null)
@@ -133,7 +133,7 @@ const TimePicker: React.FC<TimePickerProps> = ({
         key={`${item}-${i}`}
         data-value={item}
         className={`snap-center h-10 flex items-center justify-center ${
-          selected === item ? 'text-blue-600 font-bold text-lg' : 'text-gray-500'
+          selected === item ? 'text-black font-bold text-lg' : 'text-gray-500 text-lg'
         }`}
       >
         {typeof item === 'number' ? item.toString().padStart(2, '0') : item}
@@ -142,64 +142,63 @@ const TimePicker: React.FC<TimePickerProps> = ({
   }
 
   return (
-    <div className="w-full bg-white rounded-lg border border-gray-200 shadow-sm p-4">
-      <div className="relative bg-gray-100 rounded-lg shadow p-4">
-      <div className="absolute inset-x-0 top-[56%] transform -translate-y-1/2 h-10 bg-white border-y border-gray-200 pointer-events-none z-0" />
+    // <div className="w-full bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+      <div className="relative bg-gray-100 rounded-lg shadow p-2">
+      <div className="absolute inset-x-0 top-[50%] transform -translate-y-1/2 h-10 pointer-events-none z-0" />
+      <div className="flex items-center justify-center space-x-2 text-xl">
+  {/* Hour */}
+  <div className="w-14">
+    <div
+      ref={hoursContainerRef}
+      className="h-12 overflow-y-auto snap-y snap-mandatory scroll-smooth scrollbar-none mask-gradient [&::-webkit-scrollbar]:hidden"
+      onScroll={handleScroll('hour')}
+    >
+      <div className="py-20">{renderItems(hours, hour)}</div>
+    </div>
+  </div>
 
+  {/* Colon */}
+  <span className="text-gray-700 font-bold">:</span>
 
-        <div className="flex items-center justify-center gap-2 relative z-0">
-          {/* Hour */}
-          <div className="flex flex-col items-center">
-            <div className="text-sm font-medium text-gray-500 mb-1">Hour</div>
-            <div className="relative w-16">
-              <div
-                ref={hoursContainerRef}
-                className="relative z-10 h-40 overflow-y-auto scrollbar-none snap-y snap-mandatory scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-                onScroll={handleScroll('hour')}
-              >
-                <div className="py-20">{renderItems(hours, hour)}</div>
-              </div>
-            </div>
+  {/* Minute */}
+  <div className="w-14">
+    <div
+      ref={minutesContainerRef}
+      className="h-12 overflow-y-auto snap-y snap-mandatory scroll-smooth scrollbar-none mask-gradient [&::-webkit-scrollbar]:hidden"
+      onScroll={handleScroll('minute')}
+    >
+      <div className="py-20">{renderItems(minutes, minute)}</div>
+    </div>
+  </div>
+
+  {/* Colon */}
+  <span className="text-gray-700 font-bold">:</span>
+
+  {/* AM/PM */}
+  <div className="w-14">
+    <div
+      ref={ampmContainerRef}
+      className="h-10 overflow-y-auto snap-y snap-mandatory scroll-smooth scrollbar-none mask-gradient [&::-webkit-scrollbar]:hidden"
+      onScroll={handleScroll('ampm')}
+    >
+      <div className="py-20">
+        {amPmOptions.map((item, i) => (
+          <div
+            key={item}
+            data-value={item}
+            className={`snap-center h-10 flex items-center justify-center ${
+              ampm === item ? 'text-black font-bold text-lg' : 'text-gray-500 text-lg'
+            }`}
+          >
+            {item}
           </div>
-          {/* Minute */}
-          <div className="flex flex-col items-center">
-            <div className="text-sm font-medium text-gray-500 mb-1">Minute</div>
-            <div className="relative w-16">
-              <div
-                ref={minutesContainerRef}
-                className="relative z-10 h-40 overflow-y-auto scrollbar-none snap-y snap-mandatory scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-                onScroll={handleScroll('minute')}
-              >
-                <div className="py-20">{renderItems(minutes, minute)}</div>
-              </div>
-            </div>
-          </div>
-          {/* AM/PM */}
-          <div className="flex flex-col items-center">
-            <div className="text-sm font-medium text-gray-500 mb-1">AM/PM</div>
-            <div className="relative w-16">
-              <div
-                ref={ampmContainerRef}
-                className="relative z-10 h-40 overflow-y-auto scrollbar-none snap-y snap-mandatory scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-                onScroll={handleScroll('ampm')}
-              >
-                <div className="py-20">{amPmOptions.map((item, i) => (
-                <div
-                  key={item}
-                  data-value={item}
-                  className={`snap-center h-10 flex items-center justify-center ${
-                    ampm === item ? 'text-blue-600 font-bold text-lg' : 'text-gray-500'
-                  }`}
-                >
-                  {item}
-                </div>
-              ))}</div>
-              </div>
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
     </div>
+  </div>
+</div>
+      </div>
+    // </div>
   )
 }
 
