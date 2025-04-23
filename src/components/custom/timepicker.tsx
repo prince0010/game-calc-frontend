@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Clock } from 'lucide-react'
+// import { Clock } from 'lucide-react'
 
 interface TimePickerProps {
   initialTime?: string
@@ -40,7 +40,7 @@ const TimePicker: React.FC<TimePickerProps> = ({
 
   const repeated = (items: any[]) => Array(duplicates).fill(items).flat()
 
-  const centerScroll = (ref: HTMLDivElement | null, value: any, list: any[]) => {
+  const centerScroll = (ref: HTMLDivElement | null, value: any, _list: any[]) => {
     if (!ref) return
     const children = Array.from(ref.querySelectorAll('div[data-value]'))
     const midIndex = Math.floor(children.length / 2)

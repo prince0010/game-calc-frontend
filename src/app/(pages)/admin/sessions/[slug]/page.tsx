@@ -236,6 +236,18 @@ const ADD_PLAYERS_TO_SESSION = gql`
   }
 `
 
+const REMOVE_PLAYERS_FROM_SESSION = gql`
+  mutation RemovePlayersFromSession($sessionId: ID!, $playerIds: [ID!]!) {
+    removePlayersFromSession(sessionId: $sessionId, playerIds: $playerIds) {
+      _id
+      availablePlayers {
+        _id
+        name
+      }
+    }
+  }
+`
+
 // const GAME_CHANGED_SUBSCRIPTION = gql`
 //   subscription GameChange {
 //     gameChange {
@@ -317,28 +329,54 @@ const Page = () => {
   })
   
   const handleAddPlayers = async () => {
-    if (selectedPlayers.length > 0) {
+    if (tempSelectedPlayers.length > 0) {
       try {
         await addPlayersToSession({
           variables: {
-            sessionId: slug, // The session ID
-            playerIds: selectedPlayers, // The selected player IDs
+            sessionId: slug,
+            playerIds: tempSelectedPlayers,
           },
-        })
+        });
+        setTempSelectedPlayers([]);
       } catch (error) {
         console.error("Error adding players to session:", error);
       }
     } else {
       toast.warning("No Players Selected. Please select players to add.");
     }
-  }
+  };
   
+  const [removePlayersFromSession] = useMutation(REMOVE_PLAYERS_FROM_SESSION, {
+    onCompleted: () => {
+      toast.success("Players Removed from Session Successfully")
+      refetch()
+    },
+    onError: (error) => {
+      toast.error(`Failed to Remove Players', ${error.message}`)
+    }
+  })
+
+  const handleRemovePlayers = async (playerIds: string[]) => {
+    if (playerIds.length > 0 ) {
+      try {
+        await removePlayersFromSession({
+          variables: {
+            sessionId: slug,
+            playerIds: playerIds,
+          },
+        })
+      }
+      catch (error) {
+        console.error("Error Removing Players from Session:", error)
+      }    }
+  }
 
   const router = useRouter();
   const session = data?.fetchSession;
 
   const [isPlayerSelectModalOpen, setIsPlayerSelectModalOpen] = useState(false);
   const [selectedPlayers, setSelectedPlayers] = useState<string[]>([]);
+  const [tempSelectedPlayers, setTempSelectedPlayers] = useState<string[]>([])
 
   const handlePlayerSelection = (playerId: string) => {
     setSelectedPlayers((prev) =>
@@ -347,7 +385,15 @@ const Page = () => {
         : [...prev, playerId] // Add player if not selected
     );
   }
-  
+
+  const handleToggleTempSelection = (playerId: string) => {
+  setTempSelectedPlayers(prev => 
+    prev.includes(playerId) 
+      ? prev.filter(id => id !== playerId)
+      : [...prev, playerId]
+  );
+};
+
   const handleRefresh = () => {
     refetch()
     refetchGames()
@@ -476,14 +522,39 @@ const Page = () => {
               <DialogHeader className="!mb-1">
                 <DialogTitle>Add Players to Session</DialogTitle>
               </DialogHeader>
-              <PlayerSelect
+              {/* <PlayerSelect
                 players={usersData?.fetchUsers || []}
                 selectedPlayers={selectedPlayers} // Pass the selectedPlayers state
                 onSelectPlayer={handlePlayerSelection}
+                onRemovePlayer={(playerId) => handleRemovePlayers([playerId])} // Adapt to handle single playerId
                 refetchUsers={refetchUsers}
                 
+              /> */}
+              <PlayerSelect
+                players={usersData?.fetchUsers || []}
+                selectedPlayers={selectedPlayers}
+                tempSelectedPlayers={tempSelectedPlayers}
+                onSelectPlayer={handlePlayerSelection}
+                onToggleTempSelection={handleToggleTempSelection}
+                onRemovePlayer={(playerId) => handleRemovePlayers([playerId])}
+                refetchUsers={refetchUsers}
               />
-              <Button className="!h-10 !px-6 !py-4" onClick={handleAddPlayers}>Add Players</Button>
+              <div className="flex gap-2">
+              {/* <Button 
+                variant="destructive" 
+                onClick={() => handleRemovePlayers(selectedPlayers)}
+                disabled={selectedPlayers.length === 0}
+              >
+                Remove Selected
+              </Button> */}
+              <Button 
+                className="!h-10 !px-6 !py-4 flex-1" 
+                onClick={handleAddPlayers}
+                disabled={selectedPlayers.length === 0}
+              >
+                Add Selected
+              </Button>
+            </div>
             </DialogContent>
           </Dialog>
 
