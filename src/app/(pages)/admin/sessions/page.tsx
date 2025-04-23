@@ -355,7 +355,7 @@ const page = () => {
   const handlePlayerSelection = (playerId: string) => {
     setSelectedPlayers((prev) =>
       prev.includes(playerId)
-        ? prev.filter((id) => id !== playerId) 
+        ? prev.filter((id) => id !== playerId)
         : [...prev, playerId]
     )
   }
@@ -419,8 +419,11 @@ const page = () => {
           <PlayerSelect
             players={usersData?.fetchUsers || []}
             selectedPlayers={selectedPlayers}
+            tempSelectedPlayers={selectedPlayers}
             onSelectPlayer={handlePlayerSelection}
-            refetchUsers={refetchUsers} 
+            onToggleTempSelection={handlePlayerSelection}
+            onRemovePlayer={handlePlayerSelection}
+            refetchUsers={refetchUsers}
           />
 
           <Button className="w-full" onClick={handleCreateSession} disabled={startLoading}>

@@ -218,7 +218,7 @@ export const PlayerSelect = forwardRef<
       const numberOfColumns = Math.ceil(uniquePlayerIds.length / maxPlayersPerColumn);
       const gridClass = numberOfColumns >= 3 ? "grid grid-cols-3 gap-4" : 
                        numberOfColumns === 2 ? "grid grid-cols-1 md:grid-cols-2 gap-4" : 
-                       "grid grid-cols-1 gap-4";
+                       "grid grid-cols-3 gap-4";
 
       return (
         <div className={gridClass}>
