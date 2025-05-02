@@ -227,11 +227,13 @@ const GameForm = ({
   id,
   refetch,
   disabled,
+  activeCourtTab,
 }: {
   sessionId: string;
   id?: string;
   refetch?: () => void;
   disabled?: boolean;
+  activeCourtTab?: string | null;
 }) => {
   const [open, setOpen] = useState<boolean>(false);
   const [isPending, startTransition] = useTransition();
@@ -271,7 +273,7 @@ const GameForm = ({
     //   },
     // ],
     // session: sessionId || '',
-    court: sessionData?.fetchSession?.court?._id || '',
+    court: activeCourtTab || sessionData?.fetchSession?.court?._id || '',
     shuttles: [{
       quantity: 1,
       shuttle: sessionData?.fetchSession?.shuttle?._id || '',
@@ -290,7 +292,28 @@ const GameForm = ({
   } = useFieldArray({
     control: form.control,
     name: 'shuttles',
-  });
+  })
+  useEffect(() => {
+    if (activeCourtTab && !id) {
+      form.setValue('court', activeCourtTab);
+    }
+  }, [activeCourtTab, form, id]);
+  
+  useEffect(() => {
+    if (!id && sessionData && courtData && shuttleData) {
+      if (!formData) {
+        const { shuttle } = sessionData.fetchSession;
+        form.reset({
+          ...form.getValues(),
+          court: activeCourtTab || sessionData.fetchSession.court._id,
+          shuttles: [{
+            shuttle: shuttle._id,
+            quantity: 1,
+          }],
+        });
+      }
+    }
+  }, [sessionData, courtData, shuttleData, form, id, formData, activeCourtTab]);
 
   // Initialize form with default times
   useEffect(() => {
@@ -724,7 +747,7 @@ const GameForm = ({
                       <select
                         {...field}
                         className="text-base w-full border border-gray-300 rounded p-2"
-                        disabled={isPending}
+                        disabled={isPending || (!!activeCourtTab && !id)}
                       >
                         <option value="">Select Court</option>
                         {courtData?.fetchCourts.map((court: any) => (

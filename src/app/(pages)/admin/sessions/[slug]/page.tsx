@@ -305,6 +305,7 @@ const Page = () => {
   const router = useRouter()
   const session = data?.fetchSession
 
+  const [activeTab, setActiveTab] = useState("all")
   const [isPlayerSelectModalOpen, setIsPlayerSelectModalOpen] = useState(false)
   const [selectedPlayers, setSelectedPlayers] = useState<string[]>([])
   const [tempSelectedPlayers, setTempSelectedPlayers] = useState<string[]>([])
@@ -363,6 +364,12 @@ const Page = () => {
     refetchGames()
     toast.success("Data refreshed successfully!")
   }
+
+  useEffect(() => {
+    if (data?.fetchSession?.court?.length > 0 && activeTab === "all") {
+      setActiveTab(data.fetchSession.court[0]._id)
+    }
+  }, [data])
 
   useEffect(() => { 
     const interval = setInterval(() => {
@@ -565,6 +572,7 @@ const Page = () => {
           }}
           disabled={isSessionEnded}
           key={allGames.games.length}
+          activeCourtTab={activeTab === "all" ? null : activeTab}
         />
         <button 
           className="px-4 py-2 bg-green-500 text-white font-semibold rounded-lg shadow-md hover:bg-green-600"
@@ -625,7 +633,7 @@ const Page = () => {
         </DialogContent>
       </Dialog>
 
-      <Tabs defaultValue={sessionCourts.length > 0 ? sessionCourts[0]._id : "all"} className="w-full">
+      <Tabs defaultValue={activeTab} className="w-full" onValueChange={setActiveTab}>
         <TabsList className="grid w-full max-w-xl mx-auto" style={{ 
           gridTemplateColumns: `repeat(${sessionCourts.length + 1}, 1fr)`
         }}>
