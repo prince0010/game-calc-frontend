@@ -21,6 +21,8 @@ import { PlayerSelect } from "@/components/custom/PlayerSelect"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useState, useEffect } from "react"
 import { RefreshCcw } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 const FETCH_SESSION = gql`
   query FetchSession($id: ID!) {
@@ -105,6 +107,10 @@ const FETCH_SESSION = gql`
           quantity
         }
       }
+      court {
+        _id
+        name
+      }
     }
   }
 `
@@ -129,7 +135,7 @@ const END_GAME = gql`
       status
     }
   }
-`;
+`
 
 const END_SESSION = gql`
   mutation EndSession($id: ID!) {
@@ -137,7 +143,7 @@ const END_SESSION = gql`
       _id
     }
   }
-`;
+`
 
 const FETCH_GAMES_BY_SESSION = gql`
   query FetchGamesBySession($session: ID!) {
@@ -213,7 +219,7 @@ const FETCH_GAMES_BY_SESSION = gql`
       }
     }
   }
-`;
+`
 
 const FETCH_USERS = gql`
   query FetchUsers {
@@ -222,7 +228,7 @@ const FETCH_USERS = gql`
       name
     }
   }
-`;
+`
 
 const ADD_PLAYERS_TO_SESSION = gql`
   mutation AddPlayersToSession($sessionId: ID!, $playerIds: [ID!]!) {
@@ -248,56 +254,14 @@ const REMOVE_PLAYERS_FROM_SESSION = gql`
   }
 `
 
-// const GAME_CHANGED_SUBSCRIPTION = gql`
-//   subscription GameChange {
-//     gameChange {
-//       _id
-//       start
-//       end
-//       createdAt
-//       updatedAt
-//       A1 {
-//         _id
-//         name
-//       }
-//       A2 {
-//         _id
-//         name
-//       }
-//       B1 {
-//         _id
-//         name
-//       }
-//       B2 {
-//         _id
-//         name
-//       }
-//       court {
-//         _id
-//         name
-//       }
-//       shuttlesUsed {
-//         shuttle {
-//           _id
-//           name
-//         }
-//         quantity
-//       }
-//       winner
-//       status
-//       active
-//     }
-//   }
-// `
-
 const Page = () => {
-  const { slug } = useParams();
+  const { slug } = useParams()
   const { data, loading, error, refetch } = useQuery(FETCH_SESSION, {
     ssr: false,
     skip: !slug,
     variables: { id: slug },
-  });
-  const [fetchUsers, { data: usersData, refetch: refetchUsers }] = useLazyQuery(FETCH_USERS);
+  })
+  const [fetchUsers, { data: usersData, refetch: refetchUsers }] = useLazyQuery(FETCH_USERS)
   const { data: gameData, refetch: refetchGames } = useQuery(
     FETCH_GAMES_BY_SESSION,
     {
@@ -305,46 +269,28 @@ const Page = () => {
       skip: !slug,
       fetchPolicy: "network-only",
     }
-  );
-  const [endSession] = useMutation(END_SESSION);
+  )
+  const [endSession] = useMutation(END_SESSION)
   const [endGame] = useMutation(END_GAME, {
     onCompleted: () => {
-      toast.success("Game ended successfully!");
-      refetchGames();
+      toast.success("Game ended successfully!")
+      refetchGames()
     },
     onError: (error) => {
-      toast.error(`Failed to end game: ${error.message}`);
+      toast.error(`Failed to end game: ${error.message}`)
     },
   })
 
   const [addPlayersToSession] = useMutation(ADD_PLAYERS_TO_SESSION, {
     onCompleted: () => {
-      toast.success("Players added to session successfully!");
-      refetch(); // Refetch the session data to update the UI
-      setIsPlayerSelectModalOpen(false); // Close the modal
+      toast.success("Players added to session successfully!")
+      refetch()
+      setIsPlayerSelectModalOpen(false)
     },
     onError: (error) => {
-      toast.error(`Failed to add players: ${error.message}`);
+      toast.error(`Failed to add players: ${error.message}`)
     },
   })
-  
-  const handleAddPlayers = async () => {
-    if (tempSelectedPlayers.length > 0) {
-      try {
-        await addPlayersToSession({
-          variables: {
-            sessionId: slug,
-            playerIds: tempSelectedPlayers,
-          },
-        });
-        setTempSelectedPlayers([]);
-      } catch (error) {
-        console.error("Error adding players to session:", error);
-      }
-    } else {
-      toast.warning("No Players Selected. Please select players to add.");
-    }
-  };
   
   const [removePlayersFromSession] = useMutation(REMOVE_PLAYERS_FROM_SESSION, {
     onCompleted: () => {
@@ -356,8 +302,49 @@ const Page = () => {
     }
   })
 
+  const router = useRouter()
+  const session = data?.fetchSession
+
+  const [isPlayerSelectModalOpen, setIsPlayerSelectModalOpen] = useState(false)
+  const [selectedPlayers, setSelectedPlayers] = useState<string[]>([])
+  const [tempSelectedPlayers, setTempSelectedPlayers] = useState<string[]>([])
+
+  const handlePlayerSelection = (playerId: string) => {
+    setSelectedPlayers((prev) =>
+      prev.includes(playerId)
+        ? prev.filter((id) => id !== playerId)
+        : [...prev, playerId]
+    )
+  }
+
+  const handleToggleTempSelection = (playerId: string) => {
+    setTempSelectedPlayers(prev => 
+      prev.includes(playerId) 
+        ? prev.filter(id => id !== playerId)
+        : [...prev, playerId]
+    )
+  }
+
+  const handleAddPlayers = async () => {
+    if (tempSelectedPlayers.length > 0) {
+      try {
+        await addPlayersToSession({
+          variables: {
+            sessionId: slug,
+            playerIds: tempSelectedPlayers,
+          },
+        })
+        setTempSelectedPlayers([])
+      } catch (error) {
+        console.error("Error adding players to session:", error)
+      }
+    } else {
+      toast.warning("No Players Selected. Please select players to add.")
+    }
+  }
+
   const handleRemovePlayers = async (playerIds: string[]) => {
-    if (playerIds.length > 0 ) {
+    if (playerIds.length > 0) {
       try {
         await removePlayersFromSession({
           variables: {
@@ -365,74 +352,34 @@ const Page = () => {
             playerIds: playerIds,
           },
         })
-      }
-      catch (error) {
+      } catch (error) {
         console.error("Error Removing Players from Session:", error)
-      }    }
+      }
+    }
   }
-
-  const router = useRouter();
-  const session = data?.fetchSession;
-
-  const [isPlayerSelectModalOpen, setIsPlayerSelectModalOpen] = useState(false);
-  const [selectedPlayers, setSelectedPlayers] = useState<string[]>([]);
-  const [tempSelectedPlayers, setTempSelectedPlayers] = useState<string[]>([])
-
-  const handlePlayerSelection = (playerId: string) => {
-    setSelectedPlayers((prev) =>
-      prev.includes(playerId)
-        ? prev.filter((id) => id !== playerId) // Remove player if already selected
-        : [...prev, playerId] // Add player if not selected
-    );
-  }
-
-  const handleToggleTempSelection = (playerId: string) => {
-  setTempSelectedPlayers(prev => 
-    prev.includes(playerId) 
-      ? prev.filter(id => id !== playerId)
-      : [...prev, playerId]
-  );
-};
 
   const handleRefresh = () => {
     refetch()
     refetchGames()
     toast.success("Data refreshed successfully!")
-    
   }
+
   useEffect(() => { 
     const interval = setInterval(() => {
-      refetch(); // Refetch session data
-      refetchGames(); // Refetch game data
-    }, 60000); // Refetch every 60 seconds (adjust the interval as needed)
+      refetch()
+      refetchGames()
+    }, 60000)
 
-    return () => clearInterval(interval); // Cleanup interval on component unmount
+    return () => clearInterval(interval)
   }, [refetch, refetchGames])
 
-  
   useEffect(() => {
     if (isPlayerSelectModalOpen) {
       fetchUsers()
-
       const availablePlayersIds = session?.availablePlayers?.map((player: any) => player._id) || []
       setSelectedPlayers(availablePlayersIds)
     }
-  }, [isPlayerSelectModalOpen, fetchUsers, session]);
-
-  if (loading)
-    return (
-      <div className="flex-1 h-fit flex items-center justify-center">
-        <Loader2 className="animate-spin" size={200} />
-      </div>
-    );
-  if (error) return <div>Error: {error.message}</div>;
-  if (!session) return <div>No session data available</div>;
-
-  const isSessionEnded = !!session.end;
-
-  const totalShuttlesUsed = gameData?.fetchGamesBySession
-    ?.flatMap((game: any) => game.shuttlesUsed)
-    .reduce((acc: number, shuttle: any) => acc + shuttle.quantity, 0);
+  }, [isPlayerSelectModalOpen, fetchUsers, session])
 
   const handleEndGame = async (gameId: string) => {
     try {
@@ -443,11 +390,146 @@ const Page = () => {
           status: "completed",
           session: slug,
         },
-      });
+      })
     } catch (error) {
-      console.error("Error ending game:", error);
+      console.error("Error ending game:", error)
     }
-  };
+  }
+
+  if (loading)
+    return (
+      <div className="flex-1 h-fit flex items-center justify-center">
+        <Loader2 className="animate-spin" size={200} />
+      </div>
+    )
+  if (error) return <div>Error: {error.message}</div>
+  if (!session) return <div>No session data available</div>
+
+  const isSessionEnded = !!session.end
+
+  // Get all courts associated with this session
+  const sessionCourts = session.court || []
+  
+  // Get all games grouped by court
+  const gamesByCourt = sessionCourts.reduce((acc: any, court: any) => {
+    acc[court._id] = {
+      name: court.name,
+      games: gameData?.fetchGamesBySession?.filter(
+        (game: any) => game.court._id === court._id
+      ) || []
+    }
+    return acc
+  }, {} as Record<string, { name: string; games: any[] }>)
+
+  // Add an "All Courts" tab with all games
+  const allGames = {
+    name: "All Courts",
+    games: gameData?.fetchGamesBySession || []
+  }
+
+  const totalShuttlesUsed = allGames.games
+    .flatMap((game: any) => game.shuttlesUsed)
+    .reduce((acc: number, shuttle: any) => acc + shuttle.quantity, 0)
+
+  const renderGameCard = (game: any) => (
+    <div key={game._id} className="relative w-full max-w-xl mx-auto flex">
+      <Card className="p-4 w-full shadow-inner bg-opacity-100 shadow-gray-500/60 flex flex-col">
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center gap-4">
+            <Badge className={`text-white text-lg px-3 py-1 ${
+              game.court.name.includes("Concrete") ? 'bg-orange-500 border-orange-400' :
+              game.court.name.includes("Wood") ? 'bg-green-500 border-green-400' :
+              game.court.name.includes("SM Court") ? 'bg-blue-500 border-blue-400' : 
+              'bg-gray-500 border-gray-400'
+            }`}>
+              {game.court.name}
+            </Badge>
+            <div className="flex flex-col">
+              <span className="font-bold text-md">
+                {format(new Date(game.start), "hh:mm a")} - {game?.end ? format(new Date(game.end), "hh:mm a") : "Ongoing"}
+              </span>
+              {game?.end && (
+                <span className="text-sm text-muted-foreground">
+                  ({differenceInMinutes(new Date(game?.end), new Date(game.start))} mins)
+                </span>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex flex-wrap gap-2">
+            {game.shuttlesUsed.map((shuttle: any, index: number) => (
+              shuttle.quantity > 0 && (
+                <Badge key={`${shuttle.shuttle._id}-${index}`} variant="outline" className="flex items-center gap-1">
+                  <span className="text-base">{shuttle.shuttle.name}: </span>
+                  <span className="text-base font-bold">{shuttle.quantity}</span>
+                  <Image src={ShuttleIcon} alt="Shuttle" className="h-4 w-4" />
+                </Badge>
+              )
+            ))}
+          </div>
+        </div>
+
+        <CardContent className="p-0">
+          <Card className="shadow-inner shadow-gray-400/50 p-2">
+            <div className="grid grid-cols-3 items-center">
+              <div className="text-center">
+                <span className="font-semibold text-base text-gray-500">Team A</span>
+                <div className="space-y-1">
+                  <span className="font-semibold text-base">{game.A1.name}</span> & <span className="font-semibold text-base">{game.A2?.name}</span>
+                </div>
+              </div>
+              <div className="text-center font-bold text-xl">vs</div>
+              <div className="text-center">
+                <span className="font-semibold text-base text-gray-500">Team B</span>
+                <div className="space-y-1">
+                  <span className="font-semibold text-base">{game.B1.name}</span> & <span className="font-semibold text-base">{game.B2?.name}</span>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </CardContent>
+      </Card>
+
+      <div className="flex flex-col gap-2 p-1 bg-white shadow-inner shadow-gray-500/60 rounded-r-xl">
+        <div onClick={(e) => e.stopPropagation()}>
+          <GameForm id={game._id} refetch={refetchGames} sessionId={slug as string} />
+        </div>
+        {game?.end ? (
+          <Button
+            onClick={() => router.push("/admin/sessions/summary/game/" + game._id)}
+            className="bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center h-10 w-10 rounded-full"
+          >
+            <FileText className="!h-6 !w-6" />
+          </Button>
+        ) : (
+          <Button
+            variant="destructive"
+            onClick={() => handleEndGame(game._id)}
+            className="flex items-center justify-center h-10 w-10 rounded-full"
+          >
+            <CircleStop className="!h-6 !w-6" />
+          </Button>
+        )}
+      </div>
+    </div>
+  )
+
+  const renderEmptyState = () => (
+    <Card className="w-full max-w-md text-center p-6 mt-5 mx-auto">
+      <CardContent>
+        <div className="flex flex-col items-center">
+          <Frown className="w-16 h-16 text-gray-500 mb-4" />
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">
+            No games available
+          </h2>
+          <p className="text-sm text-gray-600">
+            It seems like there are no Games Scheduled/Created. Try
+            checking back later!
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  )
 
   return (
     <div className="h-fit flex-1 overflow-auto w-full flex flex-col gap-4 p-4">
@@ -458,12 +540,12 @@ const Page = () => {
               ? format(new Date(session.start), "MMMM dd, YYY")
               : "TBA"}
           </span>
-          {session.games.length > 0 && (
+          {allGames.games.length > 0 && (
             <span className="block text-muted-foreground font-semibold text-lg">
-              {format(new Date(session.games[0].start), "hh:mm a")} to{" "}
-              {session.games[session.games.length - 1].end
+              {format(new Date(allGames.games[0].start), "hh:mm a")} to{" "}
+              {allGames.games[allGames.games.length - 1].end
                 ? format(
-                    new Date(session.games[session.games.length - 1].end),
+                    new Date(allGames.games[allGames.games.length - 1].end),
                     "hh:mm a"
                   )
                 : "TBA"}{" "}
@@ -477,12 +559,12 @@ const Page = () => {
 
       <div className="flex flex-row justify-center gap-4 mt-4">
         <GameForm sessionId={slug as string} 
-         refetch={() => {
-          refetch()
-          refetchGames()
-        }}
+          refetch={() => {
+            refetch()
+            refetchGames()
+          }}
           disabled={isSessionEnded}
-          key={gameData?.fetchGamesBySession.length}
+          key={allGames.games.length}
         />
         <button 
           className="px-4 py-2 bg-green-500 text-white font-semibold rounded-lg shadow-md hover:bg-green-600"
@@ -501,174 +583,82 @@ const Page = () => {
           onClick={() => router.push(`/admin/sessions/summary/session/${slug}`)}
           className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700"
         >
-         View Summary
+          View Summary
         </button>
         
         {!session.end && (
           <button
             onClick={async () => {
-              await endSession({ variables: { id: session._id } });
-              await refetch();
+              await endSession({ variables: { id: session._id } })
+              await refetch()
             }}
             className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 rounded-r-3xl h-10 w-20 flex justify-center align-center"
           >
-            <CircleStop className="!w-6 !h-6" />
+            <CircleStop className="!w-6 !w-6" />
           </button>
         )}
       </div>
 
       <Dialog open={isPlayerSelectModalOpen} onOpenChange={setIsPlayerSelectModalOpen}>
-            <DialogContent >
-              <DialogHeader className="!mb-1">
-                <DialogTitle>Add Players to Session</DialogTitle>
-              </DialogHeader>
-              {/* <PlayerSelect
-                players={usersData?.fetchUsers || []}
-                selectedPlayers={selectedPlayers} // Pass the selectedPlayers state
-                onSelectPlayer={handlePlayerSelection}
-                onRemovePlayer={(playerId) => handleRemovePlayers([playerId])} // Adapt to handle single playerId
-                refetchUsers={refetchUsers}
-                
-              /> */}
-              <PlayerSelect
-                players={usersData?.fetchUsers || []}
-                selectedPlayers={selectedPlayers}
-                tempSelectedPlayers={tempSelectedPlayers}
-                onSelectPlayer={handlePlayerSelection}
-                onToggleTempSelection={handleToggleTempSelection}
-                onRemovePlayer={(playerId) => handleRemovePlayers([playerId])}
-                refetchUsers={refetchUsers}
-              />
-              <div className="flex gap-2">
-              {/* <Button 
-                variant="destructive" 
-                onClick={() => handleRemovePlayers(selectedPlayers)}
-                disabled={selectedPlayers.length === 0}
-              >
-                Remove Selected
-              </Button> */}
-              <Button 
-                className="!h-10 !px-6 !py-4 flex-1" 
-                onClick={handleAddPlayers}
-                disabled={selectedPlayers.length === 0}
-              >
-                Add Selected
-              </Button>
+        <DialogContent>
+          <DialogHeader className="!mb-1">
+            <DialogTitle>Add Players to Session</DialogTitle>
+          </DialogHeader>
+          <PlayerSelect
+            players={usersData?.fetchUsers || []}
+            selectedPlayers={selectedPlayers}
+            tempSelectedPlayers={tempSelectedPlayers}
+            onSelectPlayer={handlePlayerSelection}
+            onToggleTempSelection={handleToggleTempSelection}
+            onRemovePlayer={(playerId) => handleRemovePlayers([playerId])}
+            refetchUsers={refetchUsers}
+          />
+          <div className="flex gap-2">
+            <Button 
+              className="!h-10 !px-6 !py-4 flex-1" 
+              onClick={handleAddPlayers}
+              disabled={selectedPlayers.length === 0}
+            >
+              Add Selected
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Tabs defaultValue={sessionCourts.length > 0 ? sessionCourts[0]._id : "all"} className="w-full">
+        <TabsList className="grid w-full max-w-xl mx-auto" style={{ 
+          gridTemplateColumns: `repeat(${sessionCourts.length + 1}, 1fr)`
+        }}>
+          {sessionCourts.map((court: any) => (
+            <TabsTrigger key={court._id} value={court._id}>
+              {court.name}
+            </TabsTrigger>
+          ))}
+          <TabsTrigger value="all">All Courts</TabsTrigger>
+        </TabsList>
+
+        {sessionCourts.map((court: any) => (
+          <TabsContent key={court._id} value={court._id} className="mt-4">
+            <div className="grid grid-cols-1 gap-2 text-base">
+              {gamesByCourt[court._id]?.games.length > 0 ? (
+                [...gamesByCourt[court._id].games]
+                  .sort((a: any, b: any) => new Date(b.start).getTime() - new Date(a.start).getTime())
+                  .map(renderGameCard)
+              ) : renderEmptyState()}
             </div>
-            </DialogContent>
-          </Dialog>
+          </TabsContent>
+        ))}
 
-      <div className="grid grid-cols-1 gap-2 text-base">
-        {gameData?.fetchGamesBySession.length > 0 ? (
-          gameData?.fetchGamesBySession.map((game: any) => (
-            <div key={game._id} className="relative w-full max-w-xl mx-auto flex">
-              <Card className="p-1 w-full shadow-inner bg-opacity-100 shadow-gray-500/60 flex flex-col !rounded-l-xl !rounded-br-xl !rounded-tr-none text-lg">
-                <span className="text-center">
-                  <CardHeader className="mb-3 mt-[-0.45rem]">
-                    <CardDescription>
-                      <div className="flex items-start justify-center gap-52">
-                        <div className="flex flex-col items-center">
-                          <CardTitle className="text-center font-bold text-black text-lg">{game.court.name}</CardTitle>
-                          <div className="flex flex-col items-center">
-                            <span className="font-bold text-md">
-                              {format(new Date(game.start), "hh:mm a")} - {game?.end ? format(new Date(game.end), "hh:mm a") : "TBA"}
-                            </span>
-                            {game?.end && (
-                              <span className="text-md font-semibold font-muted-foreground">
-                                ({differenceInMinutes(new Date(game?.end), new Date(game.start)) + " mins"})
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col items-center">
-                          <span className="font-bold text-lg text-black block text-center">Shuttles</span>
-                          <div className="flex flex-col gap-2">
-                            {game.shuttlesUsed.map((shuttle: any) =>
-                              shuttle.quantity > 0 ? (
-                                <div key={shuttle.shuttle._id} className="flex items-center gap-2">
-                                  <span className="font-bold text-md">{shuttle.shuttle.name}</span> <span className="text-md">({shuttle.quantity}) </span>-
-                                  <div className="flex items-center justify-center">
-                                    {Array.from({ length: shuttle.quantity }).map((_, idx) => (
-                                      <Image
-                                        key={`${shuttle.shuttle._id}-${idx}`}
-                                        src={ShuttleIcon}
-                                        alt="Shuttle Icon"
-                                        className="h-4 w-4"
-                                      />
-                                    ))}
-                                  </div>
-                                </div>
-                              ) : null
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </CardDescription>
-                  </CardHeader>
-                </span>
-
-                <CardContent>
-                  <Card className="shadow-inner shadow-gray-400/50 p-2 mb-[-0.95rem] mt-[-2rem]">
-                    <div className="grid grid-cols-3 items-center">
-                      <div className="text-center">
-                        <span className="font-semibold text-base text-gray-500">Team A</span>
-                        <div className="space-y-1">
-                          <span className="font-semibold text-base">{game.A1.name}</span> & <span className="font-semibold text-base">{game.A2?.name}</span>
-                        </div>
-                      </div>
-                      <div className="text-center font-bold text-xl">vs</div>
-                      <div className="text-center">
-                        <span className="font-semibold text-base text-gray-500">Team B</span>
-                        <div className="space-y-1">
-                          <span className="font-semibold text-base">{game.B1.name}</span> & <span className="font-semibold text-base">{game.B2?.name}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                </CardContent>
-              </Card>
-
-              <div className="flex flex-col gap-2 p-1 bg-white mb-20 shadow-inner shadow-gray-500/60 rounded-r-xl">
-                <div onClick={(e) => e.stopPropagation()}>
-                  <GameForm id={game._id} refetch={refetchGames} sessionId={slug as string} />
-                </div>
-                {game?.end ? (
-                  <Button
-                    onClick={() => router.push("/admin/sessions/summary/game/" + game._id)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center h-10 w-10 rounded-full"
-                  >
-                    <FileText className="!h-6 !w-6" />
-                  </Button>
-                ) : (
-                  <Button
-                    variant="destructive"
-                    onClick={() => handleEndGame(game._id)}
-                    className="flex items-center justify-center h-10 w-10 rounded-full"
-                  >
-                    <CircleStop className="!h-6 !w-6" />
-                  </Button>
-                )}
-              </div>
-            </div>
-          ))
-        ) : (
-          <Card className="w-full max-w-md text-center p-6 mt-5 mx-auto">
-            <CardContent>
-              <div className="flex flex-col items-center">
-                <Frown className="w-16 h-16 text-gray-500 mb-4" />
-                <h2 className="text-xl font-semibold text-gray-800 mb-2">
-                  No games available for this session
-                </h2>
-                <p className="text-sm text-gray-600">
-                  It seems like there are no Games Scheduled/Created. Try
-                  checking back later!
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+        <TabsContent value="all" className="mt-4">
+          <div className="grid grid-cols-1 gap-2 text-base">
+            {allGames.games.length > 0 ? (
+              [...allGames.games]
+                .sort((a: any, b: any) => new Date(b.start).getTime() - new Date(a.start).getTime())
+                .map(renderGameCard)
+            ) : renderEmptyState()}
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

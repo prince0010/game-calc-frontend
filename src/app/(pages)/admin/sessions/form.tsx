@@ -263,14 +263,20 @@ const GameForm = ({
     resolver: zodResolver(GameSchema),
     values: formData || {
     players: ['', '', '', ''],
-    court: '',
-    shuttles: [
-      {
-        quantity: 1,
-        shuttle: '',
-      },
-    ],
-    session: sessionId || '',
+    // court: '',
+    // shuttles: [
+    //   {
+    //     quantity: 1,
+    //     shuttle: '',
+    //   },
+    // ],
+    // session: sessionId || '',
+    court: sessionData?.fetchSession?.court?._id || '',
+    shuttles: [{
+      quantity: 1,
+      shuttle: sessionData?.fetchSession?.shuttle?._id || '',
+    }],
+    session: sessionId,
     start: null,
     end: null,
     winner: undefined,
@@ -368,22 +374,43 @@ const GameForm = ({
   }, [data, form, sessionId, open]);
 
   // Set default court and shuttle for new games
+  // useEffect(() => {
+  //   if (!id && sessionData && courtData && shuttleData) {
+  //     const { court, shuttle } = sessionData.fetchSession;
+  //     form.reset({
+  //       ...form.getValues(),
+  //       court: court._id,
+  //       shuttles: [
+  //         {
+  //           shuttle: shuttle._id,
+  //           quantity: 1,
+  //         },
+  //       ],
+  //     });
+  //   }
+  // }, [sessionData, courtData, shuttleData, form, id]);
   useEffect(() => {
     if (!id && sessionData && courtData && shuttleData) {
-      const { court, shuttle } = sessionData.fetchSession;
-      form.reset({
-        ...form.getValues(),
-        court: court._id,
-        shuttles: [
-          {
+      // Don't reset here if we want to preserve state
+      if (!formData) { // Only set defaults if no saved data exists
+        const { court, shuttle } = sessionData.fetchSession;
+        form.reset({
+          ...form.getValues(),
+          court: court._id,
+          shuttles: [{
             shuttle: shuttle._id,
             quantity: 1,
-          },
-        ],
-      });
+          }],
+        });
+      }
     }
-  }, [sessionData, courtData, shuttleData, form, id]);
+  }, [sessionData, courtData, shuttleData, form, id, formData])
 
+  // const handleSubmitSuccess = () => {
+  //   setFormData(null); // Clear saved state after successful submit
+  //   closeForm();
+  // }
+  
   const getAvailablePlayers = (currentIndex: number) => {
     const selectedPlayers = form.watch('players');
     const availablePlayers = sessionData?.fetchSession?.availablePlayers || [];
@@ -482,29 +509,51 @@ const GameForm = ({
   // Save current form data before closing
      setFormData(form.getValues())
 
-    if (!id) {
-      const defaultCourt = sessionData?.fetchSession?.court?._id || '';
-      const defaultShuttle = sessionData?.fetchSession?.shuttle?._id || '';
-      const games = sessionData?.fetchSession?.games || [];
-      const lastGame = games[games.length - 1];
+    // if (!id) {
+    //   const defaultCourt = sessionData?.fetchSession?.court?._id || '';
+    //   const defaultShuttle = sessionData?.fetchSession?.shuttle?._id || '';
+    //   const games = sessionData?.fetchSession?.games || [];
+    //   const lastGame = games[games.length - 1];
 
-      let newStart = '05:00 PM';
-      if (lastGame?.end) {
-        const lastEnd = new Date(lastGame.end);
-        lastEnd.setMinutes(lastEnd.getMinutes() + 1);
-        newStart = format(toZonedTime(lastEnd, 'Asia/Manila'), 'hh:mm a');
-      }
+    //   let newStart = '05:00 PM';
+    //   if (lastGame?.end) {
+    //     const lastEnd = new Date(lastGame.end);
+    //     lastEnd.setMinutes(lastEnd.getMinutes() + 1);
+    //     newStart = format(toZonedTime(lastEnd, 'Asia/Manila'), 'hh:mm a');
+    //   }
 
-      form.reset({
-        players: ['', '', '', ''],
-        court: defaultCourt,
-        shuttles: [{ quantity: 1, shuttle: defaultShuttle }],
-        session: sessionId || '',
-        start: newStart,
-        end: '00:00 PM',
-        winner: undefined,
-      });
-    }
+    //   form.reset({
+    //     players: ['', '', '', ''],
+    //     court: defaultCourt,
+    //     shuttles: [{ quantity: 1, shuttle: defaultShuttle }],
+    //     session: sessionId || '',
+    //     start: newStart,
+    //     end: '00:00 PM',
+    //     winner: undefined,
+    //   });
+    // } // if (!id) {
+    //   const defaultCourt = sessionData?.fetchSession?.court?._id || '';
+    //   const defaultShuttle = sessionData?.fetchSession?.shuttle?._id || '';
+    //   const games = sessionData?.fetchSession?.games || [];
+    //   const lastGame = games[games.length - 1];
+
+    //   let newStart = '05:00 PM';
+    //   if (lastGame?.end) {
+    //     const lastEnd = new Date(lastGame.end);
+    //     lastEnd.setMinutes(lastEnd.getMinutes() + 1);
+    //     newStart = format(toZonedTime(lastEnd, 'Asia/Manila'), 'hh:mm a');
+    //   }
+
+    //   form.reset({
+    //     players: ['', '', '', ''],
+    //     court: defaultCourt,
+    //     shuttles: [{ quantity: 1, shuttle: defaultShuttle }],
+    //     session: sessionId || '',
+    //     start: newStart,
+    //     end: '00:00 PM',
+    //     winner: undefined,
+    //   });
+    // }
     setOpen(false);
     setTimeout(() => setIsClosing(false), 500);
   };
@@ -518,7 +567,8 @@ const GameForm = ({
       open={open}
       onOpenChange={(open) => {
         if (!open) {
-            setFormData(form.getValues())
+            // setFormData(form.getValues())
+            // if (open) setOpen(true)
             closeForm()
         }
         else setOpen(true);

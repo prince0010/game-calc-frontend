@@ -370,9 +370,7 @@ const Page = () => {
                             </TableCell>
                             <TableCell className="font-bold border"></TableCell>
                             <TableCell className="font-bold border">
-                                {formatNumberWithCommas(
-                                    summary?.otherIncome || 0
-                                )}
+                            {formatNumberWithCommas(Math.abs(summary?.otherIncome || 0))}
                             </TableCell>
                         </TableRow>
 
