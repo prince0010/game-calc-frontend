@@ -482,6 +482,7 @@ const GameForm = ({
 
           if (refetch) {
             await refetch();
+            // refetchGames({variables: { session: slug}})
           }
 
           toast.success(

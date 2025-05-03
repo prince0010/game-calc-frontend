@@ -2,7 +2,8 @@
 
 import { useRouter, useParams } from "next/navigation"
 import { gql, useLazyQuery, useMutation, useQuery } from "@apollo/client"
-import { CircleStop, FileText, Loader2, UserPlus2 } from "lucide-react"
+import { CircleStop, FileText, Loader2, SettingsIcon, UserPlus2 } from "lucide-react"
+import TennisCourtIcon from '../../../../../../public/tennis-court.png'
 import {
   Card,
   CardContent,
@@ -23,6 +24,7 @@ import { useState, useEffect } from "react"
 import { RefreshCcw } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { CourtMultiSelect } from "@/components/custom/MultipleCourts"
 
 const FETCH_SESSION = gql`
   query FetchSession($id: ID!) {
@@ -230,6 +232,15 @@ const FETCH_USERS = gql`
   }
 `
 
+const FETCH_COURT = gql`
+  query FetchCourts {
+    fetchCourts {
+      _id
+      name
+    }
+  }
+`
+
 const ADD_PLAYERS_TO_SESSION = gql`
   mutation AddPlayersToSession($sessionId: ID!, $playerIds: [ID!]!) {
     addPlayersToSession(sessionId: $sessionId, playerIds: $playerIds) {
@@ -251,6 +262,18 @@ const REMOVE_PLAYERS_FROM_SESSION = gql`
         name
       }
     }
+  }
+`
+
+const ADD_COURT_TO_SESSION = gql`
+  mutation AddCourtToSession($sessionId: ID!, $courtId: ID!) {
+    addCourtToSession(sessionId: $sessionId, courtId: $courtId) {
+      _id
+      court {
+        _id
+        name
+      }
+  }
   }
 `
 
@@ -309,6 +332,32 @@ const Page = () => {
   const [isPlayerSelectModalOpen, setIsPlayerSelectModalOpen] = useState(false)
   const [selectedPlayers, setSelectedPlayers] = useState<string[]>([])
   const [tempSelectedPlayers, setTempSelectedPlayers] = useState<string[]>([])
+  const [isAddCourtModalOpen, setIsAddCourtModalOpen] = useState(false)
+  const [availableCourts, setAvailableCourts] = useState<any[]>([])
+  const [selectedCourtToAdd, setSelectedCourtToAdd] = useState<string | null>(null)
+  const [isSessionSettingsModalOpen, setIsSessionSettingsModalOpen] = useState(false)
+  const [activeSettingsTab, setActiveSettingsTab] = useState("players")
+
+  const [addCourtToSession] = useMutation(ADD_COURT_TO_SESSION, {
+    onCompleted: () => {
+      toast.success("Court added to session successfully!")
+      refetch()
+      setIsAddCourtModalOpen(false)
+      setSelectedCourtToAdd(null)
+    },
+    onError: (error) => {
+      toast.error(`Failed to add court: ${error.message}`)
+    }
+  })
+
+  const [fetchCourts] = useLazyQuery(FETCH_COURT, {
+    onCompleted: (data) => {
+      const currentCourtIds = session?.court?.map((c: any) => c._id) || []
+      setAvailableCourts(
+        data.fetchCourts.filter((court: any) => !currentCourtIds.includes(court._id))
+      )
+    }
+  })
 
   const handlePlayerSelection = (playerId: string) => {
     setSelectedPlayers((prev) =>
@@ -327,15 +376,18 @@ const Page = () => {
   }
 
   const handleAddPlayers = async () => {
-    if (tempSelectedPlayers.length > 0) {
+    const playersToAdd = [...new Set([...tempSelectedPlayers, ...selectedPlayers])]
+    if (playersToAdd.length > 0) {
       try {
         await addPlayersToSession({
           variables: {
             sessionId: slug,
-            playerIds: tempSelectedPlayers,
+            playerIds: playersToAdd,
           },
         })
         setTempSelectedPlayers([])
+        setSelectedPlayers([])
+        setIsSessionSettingsModalOpen(false)
       } catch (error) {
         console.error("Error adding players to session:", error)
       }
@@ -366,10 +418,13 @@ const Page = () => {
   }
 
   useEffect(() => {
-    if (data?.fetchSession?.court?.length > 0 && activeTab === "all") {
-      setActiveTab(data.fetchSession.court[0]._id)
+  if (data?.fetchSession?.court?.length > 0) {
+    const newCourtId = data.fetchSession.court[data.fetchSession.court.length - 1]._id;
+    if (activeTab !== newCourtId) {
+      setActiveTab(newCourtId);
     }
-  }, [data])
+  }
+}, [data])
 
   useEffect(() => { 
     const interval = setInterval(() => {
@@ -574,12 +629,35 @@ const Page = () => {
           key={allGames.games.length}
           activeCourtTab={activeTab === "all" ? null : activeTab}
         />
-        <button 
+        {/* <button 
           className="px-4 py-2 bg-green-500 text-white font-semibold rounded-lg shadow-md hover:bg-green-600"
           onClick={() => setIsPlayerSelectModalOpen(true)}
         >
           <UserPlus2 className="!w-6 !h-6" />
         </button>
+        <button 
+            className="px-4 py-2 bg-purple-500 text-white font-semibold rounded-lg shadow-md hover:bg-purple-600"
+            onClick={() => {
+              setIsAddCourtModalOpen(true);
+              fetchCourts();
+            }}
+          >
+           <img src="/tennis-court.png" alt="Tennis Court" className="!w-6 !h-6"/>
+          </button> */}
+          <button 
+              className="px-4 py-2 bg-indigo-500 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-600"
+              onClick={() => {
+                setIsSessionSettingsModalOpen(true)
+                fetchUsers()
+                fetchCourts()
+                setActiveSettingsTab("players") // Default to players tab
+                const availablePlayersIds = session?.availablePlayers?.map((player: any) => player._id) || []
+                setSelectedPlayers(availablePlayersIds)
+              }}
+              
+            >
+              <SettingsIcon className="!w-6 !h-6" />
+            </button>
         <button 
           className="px-4 py-2 bg-gray-500 text-white font-semibold rounded-lg shadow-md hover:bg-gray-600"
           onClick={handleRefresh}
@@ -607,31 +685,85 @@ const Page = () => {
         )}
       </div>
 
-      <Dialog open={isPlayerSelectModalOpen} onOpenChange={setIsPlayerSelectModalOpen}>
-        <DialogContent>
-          <DialogHeader className="!mb-1">
-            <DialogTitle>Add Players to Session</DialogTitle>
-          </DialogHeader>
-          <PlayerSelect
-            players={usersData?.fetchUsers || []}
-            selectedPlayers={selectedPlayers}
-            tempSelectedPlayers={tempSelectedPlayers}
-            onSelectPlayer={handlePlayerSelection}
-            onToggleTempSelection={handleToggleTempSelection}
-            onRemovePlayer={(playerId) => handleRemovePlayers([playerId])}
-            refetchUsers={refetchUsers}
+      <Dialog open={isSessionSettingsModalOpen} onOpenChange={setIsSessionSettingsModalOpen}>
+  <DialogContent className="max-w-2xl">
+    <DialogHeader>
+      <DialogTitle>Session Settings</DialogTitle>
+    </DialogHeader>
+    
+    <Tabs 
+      value={activeSettingsTab} 
+      onValueChange={setActiveSettingsTab}
+      className="w-full"
+    >
+      <TabsList className="grid w-full grid-cols-2">
+        <TabsTrigger value="players">
+          <UserPlus2 className="w-4 h-4 mr-2" />
+          Players
+        </TabsTrigger>
+        <TabsTrigger value="courts">
+          <img 
+            src="/tennis-court.png" 
+            alt="Tennis Court" 
+            className="w-4 h-4 mr-2"
           />
-          <div className="flex gap-2">
-            <Button 
-              className="!h-10 !px-6 !py-4 flex-1" 
-              onClick={handleAddPlayers}
-              disabled={selectedPlayers.length === 0}
-            >
-              Add Selected
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+          Courts
+        </TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="players" className="pt-4">
+        <PlayerSelect
+          players={usersData?.fetchUsers || []}
+          selectedPlayers={selectedPlayers}
+          tempSelectedPlayers={tempSelectedPlayers}
+          onSelectPlayer={handlePlayerSelection}
+          onToggleTempSelection={handleToggleTempSelection}
+          onRemovePlayer={(playerId) => handleRemovePlayers([playerId])}
+          refetchUsers={refetchUsers}
+        />
+        <div className="flex gap-2 mt-4">
+          <Button 
+            className="flex-1" 
+            onClick={handleAddPlayers}
+            disabled={selectedPlayers.length === 0 && tempSelectedPlayers.length === 0}
+          >
+            Add Selected Players
+          </Button>
+        </div>
+      </TabsContent>
+
+      <TabsContent value="courts" className="pt-4">
+        <CourtMultiSelect 
+          courts={availableCourts}
+          selectedCourts={selectedCourtToAdd ? [selectedCourtToAdd] : []}
+          onSelectCourt={(courtId) => {
+            setSelectedCourtToAdd(courtId === selectedCourtToAdd ? null : courtId)
+          }}
+        />
+        <Button 
+          className="w-full mt-4"
+          onClick={() => {
+            if(selectedCourtToAdd) {
+              addCourtToSession({
+                variables: {
+                  sessionId: slug,
+                  courtId: selectedCourtToAdd,
+                }
+              }).then(()=>{
+                setIsSessionSettingsModalOpen(false)
+              })
+            } else {
+              toast.error("Please select a court to add.")
+            }
+          }}
+          disabled={!selectedCourtToAdd}
+        >
+          Add Selected Court
+        </Button>
+      </TabsContent>
+    </Tabs>
+  </DialogContent>
+</Dialog>
 
       <Tabs defaultValue={activeTab} className="w-full" onValueChange={setActiveTab}>
         <TabsList className="grid w-full max-w-xl mx-auto" style={{ 

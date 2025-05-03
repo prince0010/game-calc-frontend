@@ -99,11 +99,17 @@ export const PlayerSelect = forwardRef<
 
             if (existingPlayer) {
                 onSelectPlayer(existingPlayer._id)
+                if (onToggleTempSelection){
+                    onToggleTempSelection(existingPlayer._id)
+                }
                 return existingPlayer._id
             } else {
                 try {
                     if (onCreatePlayer) {
                         const newPlayerId = await onCreatePlayer(newPlayerName)
+                        if (newPlayerId && onToggleTempSelection) {
+                            onToggleTempSelection(newPlayerId)
+                        }
                         return newPlayerId
                     } else {
                         const response = await createUser({

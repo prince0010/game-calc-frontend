@@ -1,5 +1,7 @@
 "use client";
+import { CourtMultiSelect } from "@/components/custom/MultipleCourts"
 import { PlayerSelect } from "@/components/custom/PlayerSelect";
+import { ShuttleSingleSelect } from "@/components/custom/ShuttleSelect"
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,12 +14,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { gql, useLazyQuery, useMutation } from "@apollo/client";
 import { differenceInMinutes } from "date-fns";
-import { Loader2, X } from "lucide-react"; // Import X icon for the close button
+import { Divide, Loader2, X } from "lucide-react"; // Import X icon for the close button
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 
 // DEFAULT
-const DEFAULT_COURT_ID = "6791993543683b5ac0a1ccc8" //Wood
+const DEFAULT_COURT_ID = ["6791993543683b5ac0a1ccc8"] //Wood
 const DEFAULT_SHUTTLE_ID = "6791995a43683b5ac0a1cccc" // XP2 shuttle
 const DEFAULT_PLAYER_IDS = [
   "67c6a24c0bb4c89568b35dae", // Jordan
@@ -146,7 +148,7 @@ const FETCH_SESSIONS = gql`
 `
 
 const START_SESSION = gql`
-  mutation StartSession($courtId: ID!, $shuttleId: ID!, $playerIds: [ID!]!) {
+  mutation StartSession($courtId: [ID!]!, $shuttleId: ID!, $playerIds: [ID!]!) {
     startSession(courtId: $courtId, shuttleId: $shuttleId, playerIds: $playerIds) {
       _id
       start
@@ -219,7 +221,7 @@ const page = () => {
     onCompleted: () => {
       refetch()
       setOpen(false)
-      setSelectCourt(null)
+      setSelectCourts([])
       setSelectedShuttle(null)
       setSelectedPlayers([])
     },
@@ -238,7 +240,7 @@ const page = () => {
   const sessions = data?.fetchSessions
 
   const [open, setOpen] = useState(false)
-  const [selectedCourt, setSelectCourt] = useState<string | null>(null)
+  const [selectedCourts, setSelectCourts] = useState<string[]>([])
   const [selectedShuttle, setSelectedShuttle] = useState<string | null>(null)
   const [selectedPlayers, setSelectedPlayers] = useState<string[]>([])
   const [loadingSessionId, setLoadingSessionId] = useState<string | null>(null)
@@ -254,19 +256,19 @@ const page = () => {
     await fetchShuttles()
     await fetchUsers()
 
-    setSelectCourt(DEFAULT_COURT_ID)
+    setSelectCourts(DEFAULT_COURT_ID)
     setSelectedShuttle(DEFAULT_SHUTTLE_ID)
     setSelectedPlayers(DEFAULT_PLAYER_IDS)
   }
 
   const handleCreateSession = async () => {
-    if (!selectedCourt || !selectedShuttle) {
+    if (selectedCourts.length === 0 || !selectedShuttle) {
       return alert("Please select a court and a shuttle.");
     }
   
     const sessionResponse = await startSession({
       variables: {
-        courtId: selectedCourt,
+        courtId: selectedCourts,
         shuttleId: selectedShuttle,
         playerIds: selectedPlayers,
       },
@@ -355,7 +357,7 @@ const page = () => {
   const handlePlayerSelection = (playerId: string) => {
     setSelectedPlayers((prev) =>
       prev.includes(playerId)
-        ? prev.filter((id) => id !== playerId) 
+        ? prev.filter((id) => id !== playerId)
         : [...prev, playerId]
     )
   }
@@ -363,7 +365,7 @@ const page = () => {
   const handleDialogClose = (isOpen: boolean) => {
     if (!isOpen) {
       setSelectedPlayers([])
-      setSelectCourt(null)
+      setSelectCourts([])
       setSelectedShuttle(null)
     }
     setOpen(isOpen);
@@ -390,7 +392,7 @@ const page = () => {
             <DialogTitle>Create a New Session</DialogTitle>
           </DialogHeader>
 
-          <Select onValueChange={(value) => setSelectCourt(value)} value={selectedCourt || ""}>
+          {/* <Select onValueChange={(value) => setSelectCourt(value)} value={selectedCourt || ""}>
             <SelectTrigger>
               <SelectValue placeholder="Select a court" />
             </SelectTrigger>
@@ -401,9 +403,24 @@ const page = () => {
                 </SelectItem>
               ))}
             </SelectContent>
-          </Select>
+          </Select> */}
+        
 
-          <Select onValueChange={(value) => setSelectedShuttle(value)} value={selectedShuttle || ""}>
+          {courtsData?.fetchCourts && (
+              <CourtMultiSelect
+                courts={courtsData.fetchCourts}
+                selectedCourts={selectedCourts}
+                onSelectCourt={(courtId) => {
+                  setSelectCourts(prev => 
+                    prev.includes(courtId)
+                      ? prev.filter(id => id !== courtId)
+                      : [...prev, courtId]
+                  );
+                }}
+              />
+            )}
+          <div className="border-t border-gray-200" />
+          {/* <Select onValueChange={(value) => setSelectedShuttle(value)} value={selectedShuttle || ""}>
             <SelectTrigger>
               <SelectValue placeholder="Select a shuttle" />
             </SelectTrigger>
@@ -414,16 +431,30 @@ const page = () => {
                 </SelectItem>
               ))}
             </SelectContent>
-          </Select>
-
+          </Select> */}
+          {shuttlesData?.fetchShuttles && (
+            <ShuttleSingleSelect
+            shuttles={shuttlesData.fetchShuttles}
+            selectedShuttle={selectedShuttle}
+            onSelectShuttle={(shuttleId) => (
+              setSelectedShuttle(shuttleId)
+            )} 
+            />
+          )}
+         <div className="border-t border-gray-200" />
           <PlayerSelect
             players={usersData?.fetchUsers || []}
             selectedPlayers={selectedPlayers}
+            tempSelectedPlayers={selectedPlayers}
             onSelectPlayer={handlePlayerSelection}
-            refetchUsers={refetchUsers} 
+            onToggleTempSelection={handlePlayerSelection}
+            onRemovePlayer={(playerId) => {
+              setSelectedPlayers(prev => prev.filter(id => id !== playerId));
+            }}
+            refetchUsers={refetchUsers}
           />
 
-          <Button className="w-full" onClick={handleCreateSession} disabled={startLoading}>
+          <Button className="w-full" onClick={handleCreateSession} disabled={startLoading || selectedCourts.length === 0} >
             {startLoading ? <Loader2 className="animate-spin mr-2" size={16} /> : "Create Session"}
           </Button>
         </DialogContent>
