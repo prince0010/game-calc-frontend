@@ -21,13 +21,12 @@ import React, { useEffect, useState, useTransition } from 'react';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import ButtonLoader from '@/components/custom/ButtonLoader';
-import { Clock, Loader2, Minus, Plus, SquarePen, X } from 'lucide-react';
+import { Clock, Clock3, Loader2, Minus, Plus, SquarePen, X } from 'lucide-react';
 import { format, toZonedTime } from 'date-fns-tz';
 import { parse } from 'date-fns';
-import TimePicker from '@/components/custom/timepicker';
+import TimePicker, { TimePickerRef } from '@/components/custom/timepicker';
 import { toast } from 'sonner';
 
-// GraphQL queries and mutations remain the same as your original code
 const FETCH_SESSION = gql`
   query FetchSession($id: ID!) {
     fetchSession(_id: $id) {
@@ -228,18 +227,33 @@ const GameForm = ({
   refetch,
   disabled,
   activeCourtTab,
+  forceKey,
 }: {
   sessionId: string;
   id?: string;
   refetch?: () => void;
   disabled?: boolean;
   activeCourtTab?: string | null;
+  forceKey?: string
 }) => {
   const [open, setOpen] = useState<boolean>(false);
   const [isPending, startTransition] = useTransition();
   const [endTimeModified, setEndTimeModified] = useState(false);
   const [_isClosing, setIsClosing] = useState(false);
   const [formData, setFormData] = useState<z.infer<typeof GameSchema> | null>(null)
+  const endTimePickerRef = React.useRef<TimePickerRef>(null)
+
+  const setCurrentTime = () => {
+    const now = new Date();
+    const currentTime = format(now, 'hh:mm a');
+    
+    form.setValue('end', currentTime);
+    setEndTimeModified(true);
+    
+    if (endTimePickerRef.current) {
+      endTimePickerRef.current.setTime(currentTime);
+    }
+  }
 
   const { data } = useQuery(FETCH_GAME, {
     variables: { id },
@@ -260,7 +274,8 @@ const GameForm = ({
   const { data: courtData, loading: courtsLoading } = useQuery(FETCH_COURTS);
   const { data: shuttleData, loading: shuttlesLoading } = useQuery(FETCH_SHUTTLES);
   const [submitForm] = useMutation(id ? UPDATE_GAME : CREATE_GAME);
-
+ 
+  
   const form = useForm<z.infer<typeof GameSchema>>({
     resolver: zodResolver(GameSchema),
     values: formData || {
@@ -296,26 +311,34 @@ const GameForm = ({
   useEffect(() => {
     if (activeCourtTab && !id) {
       form.setValue('court', activeCourtTab);
+      setFormData(prev => ({
+        ...(prev || form.getValues()),
+        court: activeCourtTab
+      }));
     }
-  }, [activeCourtTab, form, id]);
-  
+  }, [activeCourtTab, form, id])
+
   useEffect(() => {
     if (!id && sessionData && courtData && shuttleData) {
-      if (!formData) {
-        const { shuttle } = sessionData.fetchSession;
-        form.reset({
+      const { court, shuttle } = sessionData.fetchSession;
+
+      const woodCourt = courtData.fetchCourts.find((c: any) => 
+        c.name.toLowerCase().includes("wood")
+      )
+
+      const defaultCourt = activeCourtTab || woodCourt?._id || court._id;
+      
+      form.reset({
           ...form.getValues(),
-          court: activeCourtTab || sessionData.fetchSession.court._id,
+          court: defaultCourt,
           shuttles: [{
             shuttle: shuttle._id,
             quantity: 1,
           }],
         });
-      }
     }
   }, [sessionData, courtData, shuttleData, form, id, formData, activeCourtTab]);
 
-  // Initialize form with default times
   useEffect(() => {
     if (open && !id) {
       const games = sessionData?.fetchSession?.games || [];
@@ -343,7 +366,6 @@ const GameForm = ({
     }
   }, [open, sessionData, form, id, endTimeModified])
 
-// Handle start time changes - NEW EFFECT
   const startTime = useWatch({ control: form.control, name: 'start' });
   useEffect(() => {
     if (startTime && !endTimeModified && !id) {
@@ -357,7 +379,6 @@ const GameForm = ({
     }
   }, [startTime, form, endTimeModified, id]);
 
-  // Handle editing existing game
   useEffect(() => {
     if (data && open) {
       const game = data.fetchGame;
@@ -414,8 +435,7 @@ const GameForm = ({
   // }, [sessionData, courtData, shuttleData, form, id]);
   useEffect(() => {
     if (!id && sessionData && courtData && shuttleData) {
-      // Don't reset here if we want to preserve state
-      if (!formData) { // Only set defaults if no saved data exists
+      if (!formData) {
         const { court, shuttle } = sessionData.fetchSession;
         form.reset({
           ...form.getValues(),
@@ -530,7 +550,6 @@ const GameForm = ({
     setIsClosing(true);
     setEndTimeModified(false)
 
-  // Save current form data before closing
      setFormData(form.getValues())
 
     // if (!id) {
@@ -715,26 +734,35 @@ const GameForm = ({
                     initialTime={form.getValues('start') || '05:00 PM'}
                     onChange={(newTime) => {
                       form.setValue('start', newTime);
-                      // Optionally uncomment to sync end time when start time changes
-                      // setEndTimeModified(false);
                     }}
                   />
                 </div>
 
                 <div>
-                  <div className="flex flex-row items-center gap-2">
-                    <Clock className="mb-[-6px] h-5 w-5 text-muted-foreground" />
-                    <label className="text-base font-medium block mb-1 mt-2">
-                      End Time
-                    </label>
+                <div>
+                  <div className="flex flex-row items-center gap-2 mb-1 mt-2">
+                    <Clock className="h-5 w-5 text-muted-foreground" />
+                    <label className="text-base font-medium flex-grow">End Time</label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 px-2 flex items-center gap-1 text-sm bg-green-600 text-white font-medium hover:bg-green-700"
+                      onClick={setCurrentTime}
+                    >
+                      <Clock3 className="h-4 w-4" />
+                      <span>Now</span>
+                    </Button>
+                  </div>
                   </div>
                   <TimePicker
-                    initialTime={form.getValues('end') || '00:00 PM'}
-                    onChange={(newTime) => {
-                      setEndTimeModified(true);
-                      form.setValue('end', newTime);
-                    }}
-                  />
+                      ref={endTimePickerRef}
+                      initialTime={form.getValues('end') || '00:00 PM'}
+                      onChange={(newTime) => {
+                        setEndTimeModified(true);
+                        form.setValue('end', newTime);
+                      }}
+                    />
                 </div>
               </div>
 
@@ -749,6 +777,7 @@ const GameForm = ({
                         {...field}
                         className="text-base w-full border border-gray-300 rounded p-2"
                         disabled={isPending || (!!activeCourtTab && !id)}
+                        value={activeCourtTab || field.value}
                       >
                         <option value="">Select Court</option>
                         {courtData?.fetchCourts.map((court: any) => (

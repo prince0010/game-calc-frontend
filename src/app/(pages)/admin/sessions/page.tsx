@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { gql, useLazyQuery, useMutation } from "@apollo/client";
 import { differenceInMinutes } from "date-fns";
-import { Divide, Loader2, X } from "lucide-react"; // Import X icon for the close button
+import { Divide, Loader2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 
@@ -35,7 +35,6 @@ const DEFAULT_PLAYER_IDS = [
 ]
 
 
-// Add the REMOVE_SESSION mutation
 const REMOVE_SESSION = gql`
   mutation RemoveSession($_id: ID!) {
     removeSession(_id: $_id) {
@@ -513,7 +512,7 @@ const page = () => {
                 {session.end ? formatTimeUTC(session.end) : "TBA"}
               </span>
 
-              <span className="font-bold"> Court: {session.court?.name || "Unknown"} </span>
+              <span className="font-bold"> Court: {session.court?.map((c: any) => c.name).join(", ") || "Unknown"} </span>
               <span className="font-bold">Shuttle: {session.shuttle?.name || "Unknown"}</span>
               <Badge
                 className={`${

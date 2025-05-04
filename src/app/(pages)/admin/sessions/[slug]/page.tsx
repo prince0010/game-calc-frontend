@@ -2,7 +2,7 @@
 
 import { useRouter, useParams } from "next/navigation"
 import { gql, useLazyQuery, useMutation, useQuery } from "@apollo/client"
-import { CircleStop, FileText, Loader2, SettingsIcon, UserPlus2 } from "lucide-react"
+import { CircleStop, FileText, Loader2, Play, SettingsIcon, UserPlus2 } from "lucide-react"
 import TennisCourtIcon from '../../../../../../public/tennis-court.png'
 import {
   Card,
@@ -143,6 +143,15 @@ const END_SESSION = gql`
   mutation EndSession($id: ID!) {
     endSession(_id: $id) {
       _id
+    }
+  }
+`
+const TOGGLE_SESSION = gql`
+  mutation ToggleSession($id: ID!, $end: DateTime) {
+    toggleSession(_id: $id, end: $end) {
+      _id
+      start
+      end
     }
   }
 `
@@ -293,7 +302,16 @@ const Page = () => {
       fetchPolicy: "network-only",
     }
   )
-  const [endSession] = useMutation(END_SESSION)
+  const [toggleSession] = useMutation(TOGGLE_SESSION, {
+    onCompleted: () => {
+      refetch();
+      toast.success("Session status updated!");
+    },
+    onError: (error) => {
+      toast.error(`Failed to update session: ${error.message}`);
+    },
+  })
+
   const [endGame] = useMutation(END_GAME, {
     onCompleted: () => {
       toast.success("Game ended successfully!")
@@ -418,13 +436,23 @@ const Page = () => {
   }
 
   useEffect(() => {
-  if (data?.fetchSession?.court?.length > 0) {
-    const newCourtId = data.fetchSession.court[data.fetchSession.court.length - 1]._id;
-    if (activeTab !== newCourtId) {
-      setActiveTab(newCourtId);
+    if (data?.fetchSession?.court?.length > 0) {
+      console.log("Available courts:", data.fetchSession.court)
+      
+      const woodCourt = data.fetchSession.court.find((c: any) => 
+        c.name?.toLowerCase().includes("wood")
+      )
+      
+      console.log("Found Wood court:", woodCourt)
+      
+      const defaultTab = woodCourt?._id || 
+      data.fetchSession.court[0]?._id || 
+      "all"
+      
+      setActiveTab(defaultTab)
+      console.log("Setting default tab to:", defaultTab)
     }
-  }
-}, [data])
+  }, [data])
 
   useEffect(() => { 
     const interval = setInterval(() => {
@@ -628,6 +656,7 @@ const Page = () => {
           disabled={isSessionEnded}
           key={allGames.games.length}
           activeCourtTab={activeTab === "all" ? null : activeTab}
+          forceKey={activeTab}
         />
         {/* <button 
           className="px-4 py-2 bg-green-500 text-white font-semibold rounded-lg shadow-md hover:bg-green-600"
@@ -672,15 +701,35 @@ const Page = () => {
           View Summary
         </button>
         
-        {!session.end && (
+        {!session.end ? (
           <button
             onClick={async () => {
-              await endSession({ variables: { id: session._id } })
+              await toggleSession({ 
+                variables: { 
+                  id: session._id,
+                  end: new Date().toISOString() 
+                } 
+              })
               await refetch()
             }}
             className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 rounded-r-3xl h-10 w-20 flex justify-center align-center"
           >
             <CircleStop className="!w-6 !w-6" />
+          </button>
+        ) : (
+          <button
+            onClick={async (e) => {
+              e.stopPropagation();
+              await toggleSession({ 
+                variables: { 
+                  id: session._id,
+                  end: null 
+                } 
+              });
+            }}
+            className="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 rounded-r-3xl h-10 w-20 flex justify-center align-center"
+          >
+            <Play className="!w-6 !h-6" />
           </button>
         )}
       </div>
@@ -765,7 +814,7 @@ const Page = () => {
   </DialogContent>
 </Dialog>
 
-      <Tabs defaultValue={activeTab} className="w-full" onValueChange={setActiveTab}>
+<Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full max-w-xl mx-auto" style={{ 
           gridTemplateColumns: `repeat(${sessionCourts.length + 1}, 1fr)`
         }}>
